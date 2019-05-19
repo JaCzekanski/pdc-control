@@ -53,10 +53,9 @@ void doThing(hid_device* handle, uint8_t buffer[65]) {
         }
         printf("\n");
     }
-    
 }
 
-void readInfo(hid_device* handle) {
+void getFirmwareName(hid_device* handle) {
     uint8_t data[65];
     data[0] = 0;
 
@@ -70,7 +69,7 @@ void readInfo(hid_device* handle) {
     }
 
     uint8_t length = data[9];
-    printf("Name: ");
+    printf("Firmware: ");
     for (int i = 0; i< length; i++) {
         printf("%c", data[10+i]);
     }
@@ -98,11 +97,45 @@ void readModes(hid_device* handle) {
     else printf("config %d", selectedMode+1);
     printf("\n");
 
-
     uint8_t length = data[9];
-    printf("hex dump: \n");
+
+    uint8_t content[64];
     for (int i = 0; i<length; i++) {
-        printf("%02X ", data[10 + i]);
+        content[i] = data[10+i];
+    }
+
+    uint8_t modeCount = content[5];
+    printf("Mode count: %d\n", modeCount);
+
+    for (int i = 0; i< modeCount; i++) {
+        uint32_t mode = 0;
+        mode |= content[7 + i*4 + 0];
+        mode |= content[7 + i*4 + 1] << 8;
+        mode |= content[7 + i*4 + 2] << 16;
+        mode |= content[7 + i*4 + 3] << 24;
+
+        bool variable = (mode & 0xc0000000) == 0xc0000000;
+        int voltage = ((mode & 0x7FE00) >> 9) * 2.5; // 1V == 1000
+        int amperage = (mode & 0x1ff) * 1; // 1A == 1000
+        if (variable) {
+            int amperage = ((mode & 0x7f))*5;
+            int lower = ((mode & 0xff80) >> 7) * 5;
+            int upper = ((mode & 0x1ff0000) >> 16) * 5;
+            // int minVoltage = (mode & 0x1ff)*5;
+            // int maxVoltage = ((mode & 0xf0000000)>>28)*25;
+            // printf("Mode %d:  %2d.%02dV - %2d.%02dV  0x%08x\n", i+1, minVoltage/100, minVoltage%100, maxVoltage/100, maxVoltage%100, mode);
+            printf("Mode %d: %2d.%02dV - %2d.%02dV  %2d.%02dA  0x%08x\n", i+1, lower/100, lower%100, upper/100, upper%100, amperage/100, amperage%100, mode);
+
+        }  else {
+            printf("Mode %d:   %2d.%02dV %2d.%02dA   0x%08x  %s\n", i+1, voltage/100, voltage%100, amperage/100, amperage%100, mode, (variable)?"(variable)":"");
+        }
+    }
+    
+
+    printf("\n");
+    printf("hex dump (content only): \n");
+    for (int i = 0; i<length; i++) {
+        printf("%02X ", content[i]);
         if ((i+1) % 16 == 0) printf("\n");
     }
     printf("\n");
@@ -134,10 +167,9 @@ int main(int argc, char* argv[]) {
     hid_get_serial_number_string(handle, buf, BUF_SIZE);
     wprintf(L"Serial Number: %ls\n", buf);
 
-    printf("msg1: \n");
     doThing(handle, msg1);
 
-    readInfo(handle);
+    getFirmwareName(handle);
 
     readModes(handle);
 

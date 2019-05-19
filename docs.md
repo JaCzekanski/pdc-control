@@ -27,3 +27,15 @@ data[11] - selected mode
 - 0xa2 - rotate
 - 0x00 - first (5V)
 - ...
+
+
+Message content (without header)
+
+content[0] = 0xA0  // always?
+content[1] - selected mode (see above)
+content[2] = 0x88  // ?
+content[3] = 0x13  // ?
+content[4] = 0x01  // ?
+content[5] = mode count 
+content[6] = 0x00  // ?
+// 4B per mode
